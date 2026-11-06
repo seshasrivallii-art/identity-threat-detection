@@ -4,7 +4,11 @@ Detects **impossible travel**, **MFA fatigue**, and **session hijacking** in aut
 using rule-based detections plus an Isolation Forest anomaly model, then rolls everything up into
 a per-user risk score and an analyst dashboard. Detections are also provided as Microsoft Sentinel
 KQL, Splunk SPL and Sigma rules.
+   ## Screenshots
 
+   ![Alert queue](screenshots/alert-queue.png)
+   ![Login map with impossible travel](screenshots/login-map.png)
+   ![MFA fatigue burst](screenshots/mfa-burst.png)
 | Detection | MITRE ATT&CK | Logic |
 |---|---|---|
 | Impossible travel | T1078 | Consecutive logins > 500 km apart at > 900 km/h, skipping trusted / familiar ASNs |
