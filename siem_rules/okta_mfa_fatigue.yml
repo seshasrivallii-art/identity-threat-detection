@@ -1,0 +1,35 @@
+title: Okta Verify Push Denied
+id: 5c1f6a0e-2b7d-4c8e-9a51-0e4f7b2d9c31
+name: okta_push_denied
+status: experimental
+description: A user denied an Okta Verify push notification.
+logsource:
+    product: okta
+    service: okta
+detection:
+    selection:
+        eventtype: user.mfa.okta_verify.deny_push
+    condition: selection
+level: low
+---
+title: Okta MFA Fatigue - Repeated Push Denials
+id: 8e2a4b91-6d3c-4f7a-b0e5-1c9d2f6a8b47
+status: experimental
+description: Three or more denied Okta Verify pushes for one user within 10 minutes (push bombing).
+references:
+    - https://attack.mitre.org/techniques/T1621/
+tags:
+    - attack.credential-access
+    - attack.t1621
+correlation:
+    type: event_count
+    rules:
+        - okta_push_denied
+    group-by:
+        - actor.alternateid
+    timespan: 10m
+    condition:
+        gte: 3
+falsepositives:
+    - Users mistakenly denying pushes several times
+level: high

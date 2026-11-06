@@ -1,0 +1,22 @@
+// MFA fatigue / push bombing - Microsoft Sentinel / Entra ID SigninLogs
+// MITRE ATT&CK T1621. 500121 = strong authentication failed (denied / not answered).
+let Window = 10m;
+let MinDenials = 3;
+let Denials = SigninLogs
+    | where TimeGenerated > ago(1d)
+    | where ResultType == 500121
+    | summarize DenialCount = count(), FirstDenial = min(TimeGenerated), LastDenial = max(TimeGenerated),
+                DenialIPs = make_set(IPAddress), Details = make_set(tostring(Status.additionalDetails))
+        by UserPrincipalName, bin(TimeGenerated, Window)
+    | where DenialCount >= MinDenials;
+Denials
+| join kind=inner (
+    SigninLogs
+    | where TimeGenerated > ago(1d) and ResultType == 0
+    | project SuccessTime = TimeGenerated, UserPrincipalName, SuccessIP = IPAddress,
+              SuccessCountry = tostring(LocationDetails.countryOrRegion)
+  ) on UserPrincipalName
+| where SuccessTime between (FirstDenial .. (LastDenial + 30m))
+| extend OffHours = hourofday(SuccessTime) < 6 or hourofday(SuccessTime) >= 22
+| project UserPrincipalName, FirstDenial, LastDenial, DenialCount, SuccessTime, SuccessIP,
+          SuccessCountry, OffHours, DenialIPs, Details

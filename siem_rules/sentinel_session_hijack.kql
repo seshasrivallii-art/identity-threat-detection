@@ -1,0 +1,13 @@
+// Session token reuse from a different network / country / client
+// MITRE ATT&CK T1539, T1550.004. Uses interactive + non-interactive sign-ins.
+union SigninLogs, AADNonInteractiveUserSignInLogs
+| where TimeGenerated > ago(1d)
+| where isnotempty(SessionId) and ResultType == 0
+| extend Country = tostring(LocationDetails.countryOrRegion)
+| summarize Countries = dcount(Country), ASNs = dcount(AutonomousSystemNumber), UserAgents = dcount(UserAgent),
+            CountryList = make_set(Country), IPs = make_set(IPAddress), UAList = make_set(UserAgent),
+            First = min(TimeGenerated), Last = max(TimeGenerated)
+    by SessionId, UserPrincipalName
+// ASN-only change in one country is usually wifi -> cellular, so require more than that
+| where Countries > 1 or (ASNs > 1 and UserAgents > 1)
+| order by Countries desc, Last desc

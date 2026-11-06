@@ -1,0 +1,6 @@
+| comment "MFA fatigue on Okta System Log in Splunk (Okta add-on sourcetype). MITRE T1621"
+index=okta sourcetype="OktaIM2:log" (eventType="user.mfa.okta_verify.deny_push" OR eventType="user.authentication.auth_via_mfa")
+| eval denied=if(eventType="user.mfa.okta_verify.deny_push",1,0), approved=if(eventType="user.authentication.auth_via_mfa" AND 'outcome.result'="SUCCESS",1,0)
+| bin _time span=10m
+| stats sum(denied) as denials sum(approved) as approvals values(client.ipAddress) as ips values(client.geographicalContext.country) as countries by _time actor.alternateId
+| where denials>=3 AND approvals>=1

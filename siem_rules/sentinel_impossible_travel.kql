@@ -1,0 +1,25 @@
+// Impossible travel - Microsoft Sentinel / Entra ID SigninLogs
+// MITRE ATT&CK T1078. Tune thresholds to match config.py.
+let MaxSpeedKmh = 900.0;
+let MinDistanceKm = 500.0;
+let TrustedASNs = dynamic([]);   // add corporate VPN ASNs here
+SigninLogs
+| where TimeGenerated > ago(1d)
+| where ResultType == 0
+| extend Lat = toreal(LocationDetails.geoCoordinates.latitude),
+         Lon = toreal(LocationDetails.geoCoordinates.longitude),
+         Country = tostring(LocationDetails.countryOrRegion),
+         City = tostring(LocationDetails.city)
+| where isnotempty(Lat) and AutonomousSystemNumber !in (TrustedASNs)
+| project TimeGenerated, UserPrincipalName, IPAddress, City, Country, Lat, Lon, AutonomousSystemNumber
+| sort by UserPrincipalName asc, TimeGenerated asc
+| extend PrevUser = prev(UserPrincipalName), PrevTime = prev(TimeGenerated),
+         PrevLat = prev(Lat), PrevLon = prev(Lon), PrevCity = prev(City), PrevCountry = prev(Country)
+| where UserPrincipalName == PrevUser
+| extend DistanceKm = geo_distance_2points(PrevLon, PrevLat, Lon, Lat) / 1000.0,
+         Hours = datetime_diff('second', TimeGenerated, PrevTime) / 3600.0
+| extend SpeedKmh = DistanceKm / max_of(Hours, 1.0/60)
+| where DistanceKm > MinDistanceKm and SpeedKmh > MaxSpeedKmh
+| project TimeGenerated, UserPrincipalName, From = strcat(PrevCity, ", ", PrevCountry),
+          To = strcat(City, ", ", Country), DistanceKm = round(DistanceKm), Minutes = round(Hours * 60),
+          SpeedKmh = round(SpeedKmh), IPAddress
